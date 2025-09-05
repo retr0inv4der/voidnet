@@ -27,7 +27,7 @@ int main(){
 
     //start getting msgs
     int n ; 
-    char* buffer ;
+    char buffer[1024] ;
     struct sockaddr client_addr ; // client socket buffer
     socklen_t addr_len = sizeof(client_addr);
     while(true){
