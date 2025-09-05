@@ -38,20 +38,31 @@ int main(){
         n = recvfrom(serverfd, buffer, 100, 0 , &client_addr , &addr_len);
         if(client_list.size() == 0 ) client_list.push_back(client_addr);
 
-        bool exist = 0;
-        for(int i = 0 ; i<=client_list.size() ; i++){
-            if((((struct sockaddr_in*)&client_addr)->sin_addr.s_addr == (((struct sockaddr_in*)&client_list[i])->sin_addr.s_addr)) && (((struct sockaddr_in*)&client_addr)->sin_port == (((struct sockaddr_in*)&client_list[i])->sin_port))){
-                exist =1 ;
-                break; 
+
+        bool isSameAddr = 0;
+        bool isSamePort = 0 ;
+        bool isSameClient = 0;
+        for(int i = 0 ; i<=client_list.size()-1; i++){
+            isSameAddr = (((struct sockaddr_in*)&client_addr)->sin_addr.s_addr == (((struct sockaddr_in*)&client_list[i])->sin_addr.s_addr));
+            isSamePort = (((struct sockaddr_in*)&client_addr)->sin_port == (((struct sockaddr_in*)&client_list[i])->sin_port));
+            isSameClient = isSameAddr&& isSamePort ;
+            if(isSameClient){
+                break;
             }
         }
-        if(!exist) client_list.push_back(client_addr);
+        if(!isSameClient) client_list.push_back(client_addr);
         std::cout<<"captured:" << buffer << std::endl ; 
-
-        //broadcast for all clients
+        
+        //broadcast for all clients except for the sender
         for(int i =0 ; i<= client_list.size()-1 ; i++){
-            sendto(serverfd, buffer, 100, 0 ,(struct sockaddr* ) &client_list[i] , sizeof(client_list[i]));
-
+            isSameAddr = (((struct sockaddr_in*)&client_addr)->sin_addr.s_addr == (((struct sockaddr_in*)&client_list[i])->sin_addr.s_addr));
+            isSamePort = (((struct sockaddr_in*)&client_addr)->sin_port == (((struct sockaddr_in*)&client_list[i])->sin_port));
+            isSameClient = isSameAddr&& isSamePort ;
+            if(!isSameClient){
+                sendto(serverfd, buffer, 100, 0 ,(struct sockaddr* ) &client_list[i] , sizeof(client_list[i]));
+                
+            }
         }
+        
     }   
 }
