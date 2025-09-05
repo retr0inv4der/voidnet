@@ -9,7 +9,7 @@
 int main(){
     //socket file descriptor creation
     int serverfd ;
-    if(serverfd = socket(AF_INET , SOCK_DGRAM , 0) == -1)perror("socket file descriptor creation failed");
+    if((serverfd = socket(AF_INET , SOCK_DGRAM , 0)) == -1)perror("socket file descriptor creation failed");
 
     //define the server ip and the port number
     struct sockaddr_in address ; 
@@ -23,6 +23,7 @@ int main(){
         close(serverfd);
         exit(1);
     }
+    std::cout << "listening ..." << std::endl ; 
 
     //start getting msgs
     int n ; 
