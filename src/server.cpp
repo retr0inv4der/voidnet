@@ -1,10 +1,11 @@
+#include <arpa/inet.h>
 #include <cstdio>
 #include <sys/socket.h>
 #include <iostream>
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <unistd.h>
-
+#include <vector>
 
 int main(){
     //socket file descriptor creation
@@ -30,8 +31,24 @@ int main(){
     char buffer[1024] ;
     struct sockaddr client_addr ; // client socket buffer
     socklen_t addr_len = sizeof(client_addr);
+
+    std::vector<struct sockaddr> client_list ;
+
     while(true){
         n = recvfrom(serverfd, buffer, 100, 0 , &client_addr , &addr_len);
+        if(client_list.size() == 0 ) client_list.push_back(client_addr);
+        for(int i = 0 ; i<=client_list.size()-1 ; i++){
+            if((((struct sockaddr_in*)&client_addr)->sin_addr.s_addr != (((struct sockaddr_in*)&client_list[i])->sin_addr.s_addr)) || (((struct sockaddr_in*)&client_addr)->sin_port != (((struct sockaddr_in*)&client_list[i])->sin_port))){
+                //new client
+                client_list.push_back(client_addr);
+            }
+        }
         std::cout<<"captured:" << buffer << std::endl ; 
+
+        //broadcast for all clients
+        for(int i =0 ; i<= client_list.size()-1 ; i++){
+            sendto(serverfd, buffer, 100, 0 ,(struct sockaddr* ) &client_list[i] , sizeof(client_list[i]));
+
+        }
     }   
 }
