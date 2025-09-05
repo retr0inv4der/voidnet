@@ -37,12 +37,15 @@ int main(){
     while(true){
         n = recvfrom(serverfd, buffer, 100, 0 , &client_addr , &addr_len);
         if(client_list.size() == 0 ) client_list.push_back(client_addr);
-        for(int i = 0 ; i<=client_list.size()-1 ; i++){
-            if((((struct sockaddr_in*)&client_addr)->sin_addr.s_addr != (((struct sockaddr_in*)&client_list[i])->sin_addr.s_addr)) || (((struct sockaddr_in*)&client_addr)->sin_port != (((struct sockaddr_in*)&client_list[i])->sin_port))){
-                //new client
-                client_list.push_back(client_addr);
+
+        bool exist = 0;
+        for(int i = 0 ; i<=client_list.size() ; i++){
+            if((((struct sockaddr_in*)&client_addr)->sin_addr.s_addr == (((struct sockaddr_in*)&client_list[i])->sin_addr.s_addr)) && (((struct sockaddr_in*)&client_addr)->sin_port == (((struct sockaddr_in*)&client_list[i])->sin_port))){
+                exist =1 ;
+                break; 
             }
         }
+        if(!exist) client_list.push_back(client_addr);
         std::cout<<"captured:" << buffer << std::endl ; 
 
         //broadcast for all clients
