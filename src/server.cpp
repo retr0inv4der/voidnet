@@ -32,7 +32,7 @@ public:
         }
 
     }
-
+    
     void start(){
         int n ; 
         char buffer[1024] ;
@@ -64,7 +64,7 @@ public:
                 isSameAddr = (((struct sockaddr_in*)&client_addr)->sin_addr.s_addr == (((struct sockaddr_in*)&this->client_list[i])->sin_addr.s_addr));
                 isSamePort = (((struct sockaddr_in*)&client_addr)->sin_port == (((struct sockaddr_in*)&this->client_list[i])->sin_port));
                 isSameClient = isSameAddr&& isSamePort ;
-                if(!isSameClient){
+                if(!isSameClient && buffer[0]!='\0'){
                     sendto(this->socket_fd, buffer, 100, 0 ,(struct sockaddr* ) &this->client_list[i] , sizeof(this->client_list[i]));
                 
                 }

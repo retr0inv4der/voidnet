@@ -49,8 +49,16 @@ public:
         std::thread listener(&UDP_Client::receiveMessages ,this ,  this->sockfd);
         listener.detach();
     }
-
+    void initMessage(){
+        //this function sends a nullbyte to the server for initialization purposes at the begining of the program
+        char message ='\0';
+        int n = sendto(this->sockfd, &message, sizeof(message), 0, (struct sockaddr*)&(this->dest_addr) ,this->dest_len );
+        if (n < 0) {
+            perror("sendto(init message) failed");
+        }
+    }
     void start(){
+            this->initMessage();
             this->RegisterReveiver();
 
             char message[1024];
