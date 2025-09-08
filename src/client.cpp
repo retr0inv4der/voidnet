@@ -1,18 +1,47 @@
 #include <arpa/inet.h>
+#include <cstdint>
 #include <cstdio>
 #include <netinet/in.h>
+#include <string>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <thread>
 #include <unistd.h>
 #include <iostream>
-
+#include <vector>
+#include <cstdlib>
+#include <cstring>
 
 class UDP_Client {
 private:
+
+
     int sockfd ;
+
     struct sockaddr_in dest_addr;
+
     socklen_t dest_len = sizeof(this->dest_addr) ;
+
+    enum PacketType {
+    MESSAGE = 1,
+    ACK = 2
+};
+
+struct MessagePacket {
+    uint32_t type;   // MESSAGE
+    uint32_t seq;
+    uint32_t size;
+    char data[256];
+};
+
+struct AckPacket {
+    uint32_t type;   // ACK
+    uint32_t seq;
+};
+    MessagePacket receivedMessage{};
+    AckPacket receivedAck{};
+
+    std::vector<struct MessagePacket> queue;
 
 public:
     UDP_Client(char ip_addr[] , int port){
@@ -31,15 +60,25 @@ public:
     }
 
     void receiveMessages(int sock){
-        char buffer[1024];
+        void* buffer[1024];
         sockaddr_in fromAdrr;
         socklen_t fromLen = sizeof(fromAdrr);
         while(true){
             int bytesReceived = recvfrom(sock, buffer, sizeof(buffer), 0 , (struct sockaddr*)&fromAdrr , &fromLen );
             if(bytesReceived>0){
-                buffer[bytesReceived] ='\0';
-                std::cout<<"\n[SERVER]:" << buffer << std::endl <<" > " ; 
-                std::cout.flush();
+                uint32_t type;
+                memcpy(&type, buffer, sizeof(type));
+
+                if(type == ACK){
+                    
+                    memcpy(&(this->receivedAck), buffer, sizeof(this->receivedAck));
+                    
+                }else if (type == MESSAGE) {
+                    memcpy(&(this->receivedMessage),buffer , sizeof(this->receivedMessage));
+                    std::cout<<"[Server]:" << receivedMessage.data << std::endl;
+                    std::cout.flush();
+                }
+
 
             }
         }
@@ -57,18 +96,43 @@ public:
             perror("sendto(init message) failed");
         }
     }
+
+
+    void addToQueue(std::string msg){
+        //we should split the message and add the packets to the queue
+        // implement the decoder here mr tom5596
+
+    
+    }
+
+
+    void SendPacket(){
+        MessagePacket Message{} ; 
+        this->receivedAck.seq =0;
+        int seqNum =1;
+        for(int i =0 ; i<this->queue.size() ; i++){
+            Message = this->queue[i];
+            while(!this->receivedAck.seq){
+                sendto(this->sockfd, &Message, sizeof(Message), 0, (struct sockaddr*)&this->dest_addr, this->dest_len);
+                if(this->receivedAck.seq ==Message.seq) break; //ack
+            }
+            
+        }   
+        this->queue.clear(); 
+        this->receivedAck.seq = 0;
+    }
+        
+    
     void start(){
             this->initMessage();
             this->RegisterReveiver();
 
-            char message[1024];
+            std::string message; 
             while (true) {
             std::cout << " > " ; 
-            std::cin.getline(message , sizeof(message));
-            int n =  sendto(this->sockfd, message, sizeof(message), 0, (struct sockaddr*)&(this->dest_addr) ,this->dest_len );
-            if (n < 0) {
-                perror("sendto failed");
-            }
+            std::getline(std::cin , message); // TODO: HANDLE THE INPUT WITH THE DECODER (tom5596)
+            //TODO: ADD TO QUEUE (tom5596)
+            this->SendPacket();
         }
     }
 };
