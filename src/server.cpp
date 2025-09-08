@@ -12,6 +12,23 @@ private:
     int socket_fd;
     std::vector<struct sockaddr> client_list;
 
+        enum PacketType {
+    MESSAGE = 1,
+    ACK = 2
+};
+
+struct MessagePacket {
+    uint32_t type;   // MESSAGE
+    uint32_t seq;
+    uint32_t size;
+    char data[256];
+};
+
+struct AckPacket {
+    uint32_t type;   // ACK
+    uint32_t seq;
+};
+
 public:
     UDP_Server(char ip_addr[] , int port ){
         //this function creates a socket and binds the ip addr and the port on that socket

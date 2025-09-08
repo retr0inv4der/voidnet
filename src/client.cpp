@@ -116,10 +116,10 @@ public:
                 sendto(this->sockfd, &Message, sizeof(Message), 0, (struct sockaddr*)&this->dest_addr, this->dest_len);
                 if(this->receivedAck.seq ==Message.seq) break; //ack
             }
-            
+            this->receivedAck.seq = 0;
         }   
         this->queue.clear(); 
-        this->receivedAck.seq = 0;
+        
     }
         
     
