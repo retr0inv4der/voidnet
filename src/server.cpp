@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <cstdio>
+#include <cstring>
 #include <sys/socket.h>
 #include <iostream>
 #include <netinet/in.h>
@@ -29,6 +30,10 @@ struct AckPacket {
     uint32_t seq;
 };
 
+std::vector<struct MessagePacket> ReceivedPackets;
+
+
+
 public:
     UDP_Server(char ip_addr[] , int port ){
         //this function creates a socket and binds the ip addr and the port on that socket
@@ -49,7 +54,37 @@ public:
         }
 
     }
-    
+
+    void PacketReceiver(){
+        int n ; 
+        char buffer[sizeof(MessagePacket)];
+        struct sockaddr client_addr ; 
+        socklen_t addr_len = sizeof(client_addr); 
+        while(true){
+            n = recvfrom(this->socket_fd, buffer, sizeof(buffer), 0 , &client_addr, &addr_len); 
+            if(this->client_list.size() == 0 ) this->client_list.push_back(client_addr);
+            //add the packet into the ReceivedPackets list
+            struct MessagePacket msg_pkt ;
+            memcpy(&msg_pkt, buffer, sizeof(buffer));
+            this->ReceivedPackets.push_back(msg_pkt);
+
+            //add the client into the client list
+            bool isSameAddr = 0;
+            bool isSamePort = 0 ;
+            bool isSameClient = 0;
+            for(int i = 0 ; i<=this->client_list.size()-1; i++){
+                isSameAddr = (((struct sockaddr_in*)&client_addr)->sin_addr.s_addr == (((struct sockaddr_in*)&this->client_list[i])->sin_addr.s_addr));
+                isSamePort = (((struct sockaddr_in*)&client_addr)->sin_port == (((struct sockaddr_in*)&this->client_list[i])->sin_port));
+                isSameClient = isSameAddr&& isSamePort ;
+                if(isSameClient){
+                    break;
+                }
+            }
+            if(!isSameClient) this->client_list.push_back(client_addr);
+            std::cout<<"captured:" << buffer << std::endl ; 
+        }
+    }
+
     void start(){
         int n ; 
         char buffer[1024] ;

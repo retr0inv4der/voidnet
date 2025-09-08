@@ -60,7 +60,7 @@ public:
     }
 
     void receiveMessages(int sock){
-        void* buffer[1024];
+        char buffer[1024];
         sockaddr_in fromAdrr;
         socklen_t fromLen = sizeof(fromAdrr);
         while(true){
