@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <cstddef>
 #include <cstdio>
 #include <cstring>
 #include <sys/socket.h>
@@ -14,7 +15,7 @@ private:
     int socket_fd;
     std::vector<struct sockaddr> client_list;
 
-        enum PacketType {
+enum PacketType {
     MESSAGE = 1,
     ACK = 2
 };
@@ -31,7 +32,14 @@ struct AckPacket {
     uint32_t seq;
 };
 
-std::vector<struct MessagePacket> ReceivedPackets;
+
+struct FullPacket{
+    struct MessagePacket Message;
+    struct sockaddr_in addr;
+};
+
+
+std::vector<FullPacket> ReceivedPackets;
 
 
 
@@ -61,13 +69,16 @@ public:
         char buffer[sizeof(MessagePacket)];
         struct sockaddr client_addr ; 
         socklen_t addr_len = sizeof(client_addr); 
+        struct FullPacket final_pkt_buff;
+        
         while(true){
             n = recvfrom(this->socket_fd, buffer, sizeof(buffer), 0 , &client_addr, &addr_len); 
             if(this->client_list.size() == 0 ) this->client_list.push_back(client_addr);
             //add the packet into the ReceivedPackets list
-            struct MessagePacket msg_pkt ;
-            memcpy(&msg_pkt, buffer, sizeof(buffer));
-            this->ReceivedPackets.push_back(msg_pkt);
+            
+            memcpy(&(final_pkt_buff.Message), buffer, sizeof(buffer));
+            memcpy(&(final_pkt_buff.addr), &client_addr, sizeof(client_addr));
+            this->ReceivedPackets.push_back(final_pkt_buff);
 
             //add the client into the client list
             bool isSameAddr = 0;
@@ -91,7 +102,35 @@ public:
         listener.detach();
     }
 
+
+    void broadcast(){
+        //this function should broadcast every received packet to all clients except the sender 
+        bool isSameAddr = 0;
+        bool isSamePort = 0 ;
+        bool isSameClient = 0;
+        size_t queue_size = this->ReceivedPackets.size();
+        size_t client_list_size = this->client_list.size();
+        socklen_t addrSize ;
+
+        for(int i =0 ; i<queue_size ; i++){ //iterate the msgs
+            for(int j = 0 ; j<client_list_size ; j++){ //iterate each client
+                //check if the pkt source addr is the same as the one in the client list and the send it to the client if not
+                isSameAddr = (this->ReceivedPackets[i].addr.sin_addr.s_addr) == (((struct sockaddr_in*)&this->client_list[j])->sin_addr.s_addr);
+                isSamePort = (this->ReceivedPackets[i].addr.sin_port) == (((struct sockaddr_in*)&this->client_list[j])->sin_port);
+                isSameClient = isSameAddr && isSamePort ;
+                if(!isSameClient){ //if they are not the same clients then send the packet to it
+                    addrSize = sizeof(this->client_list[j]);
+                    sendto(this->socket_fd, &(this->ReceivedPackets[i].Message), sizeof(MessagePacket), 0, &(this->client_list[j]),addrSize );
+                    //TODO : IMPLEMENT THE ACK SYSTEM
+                } 
+            }
+            
+                
+        }
+    }
+
     void start(){
+        this->RegisterReceiver();
         int n ; 
         char buffer[1024] ;
         struct sockaddr client_addr ; // client socket buffer
@@ -99,22 +138,14 @@ public:
 
 
         while(true){
-            this->RegisterReceiver();
+            
             bool isSameAddr = 0;
             bool isSamePort = 0 ;
             bool isSameClient = 0;
         
         //broadcast for all clients except for the sender
             
-            for(int i =0 ; i<= this->client_list.size()-1 ; i++){
-                isSameAddr = (((struct sockaddr_in*)&client_addr)->sin_addr.s_addr == (((struct sockaddr_in*)&this->client_list[i])->sin_addr.s_addr));
-                isSamePort = (((struct sockaddr_in*)&client_addr)->sin_port == (((struct sockaddr_in*)&this->client_list[i])->sin_port));
-                isSameClient = isSameAddr&& isSamePort ;
-                if(!isSameClient && buffer[0]!='\0'){
-                    sendto(this->socket_fd, buffer, 100, 0 ,(struct sockaddr* ) &this->client_list[i] , sizeof(this->client_list[i]));
-                
-                }
-            }
+            
         
         }   
 
