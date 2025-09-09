@@ -131,30 +131,12 @@ public:
 
     void start(){
         this->RegisterReceiver();
-        int n ; 
-        char buffer[1024] ;
-        struct sockaddr client_addr ; // client socket buffer
-        socklen_t addr_len = sizeof(client_addr);
-
-
         while(true){
-            
-            bool isSameAddr = 0;
-            bool isSamePort = 0 ;
-            bool isSameClient = 0;
-        
         //broadcast for all clients except for the sender
-            
-            
-        
+            this->broadcast();
         }   
 
-
     }
-
-
-
-
 
 };
 
