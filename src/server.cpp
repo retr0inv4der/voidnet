@@ -5,6 +5,7 @@
 #include <iostream>
 #include <netinet/in.h>
 #include <sys/types.h>
+#include <thread>
 #include <unistd.h>
 #include <vector>
 
@@ -85,6 +86,11 @@ public:
         }
     }
 
+    void RegisterReceiver(){
+        std::thread listener(&UDP_Server::PacketReceiver , this);
+        listener.detach();
+    }
+
     void start(){
         int n ; 
         char buffer[1024] ;
@@ -93,25 +99,13 @@ public:
 
 
         while(true){
-            n = recvfrom(this->socket_fd, buffer, 100, 0 , &client_addr , &addr_len);
-            if(this->client_list.size() == 0 ) this->client_list.push_back(client_addr);
-
-
+            this->RegisterReceiver();
             bool isSameAddr = 0;
             bool isSamePort = 0 ;
             bool isSameClient = 0;
-            for(int i = 0 ; i<=this->client_list.size()-1; i++){
-                isSameAddr = (((struct sockaddr_in*)&client_addr)->sin_addr.s_addr == (((struct sockaddr_in*)&this->client_list[i])->sin_addr.s_addr));
-                isSamePort = (((struct sockaddr_in*)&client_addr)->sin_port == (((struct sockaddr_in*)&this->client_list[i])->sin_port));
-                isSameClient = isSameAddr&& isSamePort ;
-                if(isSameClient){
-                    break;
-                }
-            }
-            if(!isSameClient) this->client_list.push_back(client_addr);
-            std::cout<<"captured:" << buffer << std::endl ; 
         
         //broadcast for all clients except for the sender
+            
             for(int i =0 ; i<= this->client_list.size()-1 ; i++){
                 isSameAddr = (((struct sockaddr_in*)&client_addr)->sin_addr.s_addr == (((struct sockaddr_in*)&this->client_list[i])->sin_addr.s_addr));
                 isSamePort = (((struct sockaddr_in*)&client_addr)->sin_port == (((struct sockaddr_in*)&this->client_list[i])->sin_port));
