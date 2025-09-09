@@ -79,6 +79,11 @@ public:
             memcpy(&(final_pkt_buff.Message), buffer, sizeof(buffer));
             memcpy(&(final_pkt_buff.addr), &client_addr, sizeof(client_addr));
             this->ReceivedPackets.push_back(final_pkt_buff);
+            //imidiatly send ACK
+            struct AckPacket ack;
+            ack.type = ACK;
+            ack.seq = final_pkt_buff.Message.seq ;
+            sendto(this->socket_fd, &ack, sizeof(ack), 0, &client_addr, addr_len);
 
             //add the client into the client list
             bool isSameAddr = 0;
@@ -122,6 +127,7 @@ public:
                     addrSize = sizeof(this->client_list[j]);
                     sendto(this->socket_fd, &(this->ReceivedPackets[i].Message), sizeof(MessagePacket), 0, &(this->client_list[j]),addrSize );
                     //TODO : IMPLEMENT THE ACK SYSTEM
+
                 } 
             }
             
