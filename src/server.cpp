@@ -84,7 +84,7 @@ public:
             //decide what the type of the packet is 
             memcpy(&type, buffer, sizeof(type));
             if(type == ACK){
-                memcpy(&(final_ack.Ack), buffer, sizeof(buffer));
+                memcpy(&(final_ack.Ack), buffer, sizeof(AckPacket));
                 memcpy(&(final_ack.addr), &client_addr, sizeof(client_addr));
                 this->ReceivedAcks.push_back(final_ack);
 
@@ -123,7 +123,23 @@ public:
         listener.detach();
     }
 
-    struct AckPacket WaitForAck(struct sockaddr* client_addr , uint32_t seq){
+    struct FullAck* WaitForAck(struct sockaddr* client_addr , uint32_t seq){
+        bool foundAck = 0 ;
+        bool isSameAddr = 0;
+        bool isSamePort = 0 ;
+        bool isSameClient = 0;
+        while(!foundAck){
+            for(int i =0 ; i<this->ReceivedAcks.size() ; i++){
+                isSameAddr = this->ReceivedAcks[i].addr.sin_addr.s_addr == (((struct sockaddr_in*) client_addr)->sin_addr.s_addr);
+                isSamePort =this->ReceivedAcks[i].addr.sin_port == ((struct sockaddr_in*) client_addr)->sin_port; 
+                isSameClient = isSameAddr && isSamePort ;
+                if(isSameClient){
+                    if(this->ReceivedAcks[i].Ack.seq  == seq){
+                        foundAck=1;
+                    }
+                }
+            }
+        }
 
     }
 
@@ -146,7 +162,7 @@ public:
                     addrSize = sizeof(this->client_list[j]);
                     sendto(this->socket_fd, &(this->ReceivedPackets[i].Message), sizeof(MessagePacket), 0, &(this->client_list[j]),addrSize );
                     //TODO : IMPLEMENT THE ACK SYSTEM
-
+                    this->WaitForAck(&(this->client_list[j]),this->ReceivedPackets[i].Message.seq );
                 } 
             }
             
