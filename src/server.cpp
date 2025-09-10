@@ -107,6 +107,9 @@ public:
         listener.detach();
     }
 
+    struct AckPacket WaitForAck(struct sockaddr* client_addr , uint32_t seq){
+
+    }
 
     void broadcast(){
         //this function should broadcast every received packet to all clients except the sender 

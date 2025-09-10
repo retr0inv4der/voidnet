@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <netinet/in.h>
+#include <ostream>
 #include <string>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -106,17 +107,51 @@ public:
     }
 
 
+void waitForAck(uint32_t seq, int timeoutSeconds) {
+    fd_set readfds;
+    struct timeval timeout;
+    int retval;
+
+    while (true) {
+        //set up the file descriptor set
+        FD_ZERO(&readfds);
+        FD_SET(this->sockfd, &readfds);
+
+        //set timeout
+        timeout.tv_sec = timeoutSeconds;
+        timeout.tv_usec = 0;
+
+        //wait for data to be ready or timeout
+        retval = select(this->sockfd + 1, &readfds, NULL, NULL, &timeout);
+
+        if (retval == -1) {
+            perror("select()");
+            exit(1);
+        } else if (retval == 0) {
+            std::cout << "Connection timed out. Disconnecting..." << std::endl;
+            close(this->sockfd);
+            exit(1);
+        }
+
+        //check if we received the expected ack
+        if (this->receivedAck.seq == seq) {
+            break; // Acknowledgment received
+        }
+    }
+}
+
     void SendPacket(){
         MessagePacket Message{} ; 
         this->receivedAck.seq =0;
         int seqNum =1;
         for(int i =0 ; i<this->queue.size() ; i++){
             Message = this->queue[i];
-            while(!this->receivedAck.seq){
-                sendto(this->sockfd, &Message, sizeof(Message), 0, (struct sockaddr*)&this->dest_addr, this->dest_len);
-                if(this->receivedAck.seq ==Message.seq) break; //ack
-            }
-            this->receivedAck.seq = 0;
+            
+            sendto(this->sockfd, &Message, sizeof(Message), 0, (struct sockaddr*)&this->dest_addr, this->dest_len);
+            this->waitForAck(Message.seq , 2) ; 
+            
+            
+            
         }   
         this->queue.clear(); 
         
@@ -133,6 +168,7 @@ public:
             std::getline(std::cin , message); // TODO: HANDLE THE INPUT WITH THE DECODER (tom5596)
             //TODO: ADD TO QUEUE (tom5596)
             this->SendPacket();
+            
         }
     }
 };
