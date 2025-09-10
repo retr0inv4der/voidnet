@@ -170,6 +170,8 @@ void waitForAck(struct sockaddr* client_addr,uint32_t seq) {
             if(isSameClient){
                 if(this->ReceivedAcks[i].Ack.seq == seq){
                     foundAck = 1 ; 
+                    //delete the ack from the receivedacks
+                    this->ReceivedAcks.erase(this->ReceivedAcks.begin()+i);
                     break;
                 }
             }
