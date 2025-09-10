@@ -73,6 +73,7 @@ public:
                 if(type == ACK){
                     
                     memcpy(&(this->receivedAck), buffer, sizeof(this->receivedAck));
+                    std::cout<<"[DEBUG] : from: receiveMEssages()---> recieved:" << this->receivedAck.seq ; 
                     
                 }else if (type == MESSAGE) {
                     memcpy(&(this->receivedMessage),buffer , sizeof(this->receivedMessage));
@@ -131,11 +132,11 @@ void waitForAck(uint32_t seq) {
             std::cout << "Connection timed out. Disconnecting..." << std::endl;
             close(this->sockfd);
             exit(1);
-            //TODO : send the packet again from the first seq num
         }
 
         //check if we received the expected ack
         if (this->receivedAck.seq == seq) {
+            std::cout<<"[DEBUG] : from: waitForAck() registered:" << this->receivedAck.seq ;
             break; // Acknowledgment received
         }
     }

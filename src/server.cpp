@@ -123,25 +123,62 @@ public:
         listener.detach();
     }
 
-    struct FullAck* WaitForAck(struct sockaddr* client_addr , uint32_t seq){
-        bool foundAck = 0 ;
-        bool isSameAddr = 0;
-        bool isSamePort = 0 ;
-        bool isSameClient = 0;
-        while(!foundAck){
-            for(int i =0 ; i<this->ReceivedAcks.size() ; i++){
-                isSameAddr = this->ReceivedAcks[i].addr.sin_addr.s_addr == (((struct sockaddr_in*) client_addr)->sin_addr.s_addr);
-                isSamePort =this->ReceivedAcks[i].addr.sin_port == ((struct sockaddr_in*) client_addr)->sin_port; 
-                isSameClient = isSameAddr && isSamePort ;
+
+
+void waitForAck(struct sockaddr* client_addr,uint32_t seq) {
+    fd_set readfds;
+    struct timeval timeout;
+    int retval;
+
+    bool foundAck = 0 ;
+    while (!foundAck) {
+        //set up the file descriptor set
+        FD_ZERO(&readfds);
+        FD_SET(this->socket_fd, &readfds);
+
+        //set timeout
+        timeout.tv_sec = 2;
+        timeout.tv_usec = 0;
+
+        //wait for data to be ready or timeout
+        retval = select(this->socket_fd + 1, &readfds, NULL, NULL, &timeout);
+
+        if (retval == -1) {
+            perror("select()");
+            exit(1);
+        } else if (retval == 0) { //time out
+            //delete the client from the client list 
+            
+            //search for the client
+            for(int i = 0 ; i < this->client_list.size() ; i++ ){
+                bool isSameAddr = ((struct sockaddr_in*)&(this->client_list))->sin_addr.s_addr == (((struct sockaddr_in*) client_addr)->sin_addr.s_addr);
+                bool isSamePort =((struct sockaddr_in*)&(this->client_list))->sin_port == ((struct sockaddr_in*) client_addr)->sin_port; 
+                bool isSameClient = isSameAddr && isSamePort ;
                 if(isSameClient){
-                    if(this->ReceivedAcks[i].Ack.seq  == seq){
-                        foundAck=1;
-                    }
+                    //delete the client
+                    this->client_list.erase(this->client_list.begin()+i);
                 }
-            }
+            }    
         }
 
+
+        for(int i = 0 ; i < this->ReceivedAcks.size() ; i++ ){
+            
+            bool isSameAddr = this->ReceivedAcks[i].addr.sin_addr.s_addr == (((struct sockaddr_in*) client_addr)->sin_addr.s_addr);
+            bool isSamePort =this->ReceivedAcks[i].addr.sin_port == ((struct sockaddr_in*) client_addr)->sin_port; 
+            bool isSameClient = isSameAddr && isSamePort ;
+            if(isSameClient){
+                if(this->ReceivedAcks[i].Ack.seq == seq){
+                    foundAck = 1 ; 
+                    break;
+                }
+            }
+
+        }
+        
+        
     }
+}
 
     void broadcast(){
         //this function should broadcast every received packet to all clients except the sender 
@@ -162,7 +199,7 @@ public:
                     addrSize = sizeof(this->client_list[j]);
                     sendto(this->socket_fd, &(this->ReceivedPackets[i].Message), sizeof(MessagePacket), 0, &(this->client_list[j]),addrSize );
                     //TODO : IMPLEMENT THE ACK SYSTEM
-                    this->WaitForAck(&(this->client_list[j]),this->ReceivedPackets[i].Message.seq );
+                    this->waitForAck(&(this->client_list[j]),this->ReceivedPackets[i].Message.seq );
                 } 
             }
             
@@ -180,9 +217,6 @@ public:
     }
 
 };
-
-
-
 
 
 int main(){
