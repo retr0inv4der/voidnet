@@ -38,9 +38,13 @@ struct FullPacket{
     struct sockaddr_in addr;
 };
 
-
+struct FullAck{
+    struct AckPacket Ack ; 
+    struct sockaddr_in addr ; 
+};
 std::vector<FullPacket> ReceivedPackets;
 
+std::vector<FullAck> ReceivedAcks; 
 
 
 public:
@@ -70,20 +74,32 @@ public:
         struct sockaddr client_addr ; 
         socklen_t addr_len = sizeof(client_addr); 
         struct FullPacket final_pkt_buff;
+        struct FullAck final_ack;
+        uint32_t type;
         
         while(true){
             n = recvfrom(this->socket_fd, buffer, sizeof(buffer), 0 , &client_addr, &addr_len); 
             if(this->client_list.size() == 0 ) this->client_list.push_back(client_addr);
             //add the packet into the ReceivedPackets list
+            //decide what the type of the packet is 
+            memcpy(&type, buffer, sizeof(type));
+            if(type == ACK){
+                memcpy(&(final_ack.Ack), buffer, sizeof(buffer));
+                memcpy(&(final_ack.addr), &client_addr, sizeof(client_addr));
+                this->ReceivedAcks.push_back(final_ack);
+
+            }else if(type  == MESSAGE){
+                memcpy(&(final_pkt_buff.Message), buffer, sizeof(buffer));
+                memcpy(&(final_pkt_buff.addr), &client_addr, sizeof(client_addr));
+                this->ReceivedPackets.push_back(final_pkt_buff);
+                //imidiatly send ACK
+                struct AckPacket ack;
+                ack.type = ACK;
+                ack.seq = final_pkt_buff.Message.seq ;
+                sendto(this->socket_fd, &ack, sizeof(ack), 0, &client_addr, addr_len);
+            }
             
-            memcpy(&(final_pkt_buff.Message), buffer, sizeof(buffer));
-            memcpy(&(final_pkt_buff.addr), &client_addr, sizeof(client_addr));
-            this->ReceivedPackets.push_back(final_pkt_buff);
-            //imidiatly send ACK
-            struct AckPacket ack;
-            ack.type = ACK;
-            ack.seq = final_pkt_buff.Message.seq ;
-            sendto(this->socket_fd, &ack, sizeof(ack), 0, &client_addr, addr_len);
+            
 
             //add the client into the client list
             bool isSameAddr = 0;

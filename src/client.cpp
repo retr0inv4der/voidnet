@@ -107,7 +107,7 @@ public:
     }
 
 
-void waitForAck(uint32_t seq, int timeoutSeconds) {
+void waitForAck(uint32_t seq) {
     fd_set readfds;
     struct timeval timeout;
     int retval;
@@ -118,7 +118,7 @@ void waitForAck(uint32_t seq, int timeoutSeconds) {
         FD_SET(this->sockfd, &readfds);
 
         //set timeout
-        timeout.tv_sec = timeoutSeconds;
+        timeout.tv_sec = 2;
         timeout.tv_usec = 0;
 
         //wait for data to be ready or timeout
@@ -131,6 +131,7 @@ void waitForAck(uint32_t seq, int timeoutSeconds) {
             std::cout << "Connection timed out. Disconnecting..." << std::endl;
             close(this->sockfd);
             exit(1);
+            //TODO : send the packet again from the first seq num
         }
 
         //check if we received the expected ack
@@ -144,14 +145,12 @@ void waitForAck(uint32_t seq, int timeoutSeconds) {
         MessagePacket Message{} ; 
         this->receivedAck.seq =0;
         int seqNum =1;
-        for(int i =0 ; i<this->queue.size() ; i++){
+        for(int i =0 ; i< this->queue.size() ; i++){
             Message = this->queue[i];
             
             sendto(this->sockfd, &Message, sizeof(Message), 0, (struct sockaddr*)&this->dest_addr, this->dest_len);
-            this->waitForAck(Message.seq , 2) ; 
-            
-            
-            
+            this->waitForAck(Message.seq ) ; 
+
         }   
         this->queue.clear(); 
         
@@ -168,7 +167,7 @@ void waitForAck(uint32_t seq, int timeoutSeconds) {
             std::getline(std::cin , message); // TODO: HANDLE THE INPUT WITH THE DECODER (tom5596)
             //TODO: ADD TO QUEUE (tom5596)
             this->SendPacket();
-            
+
         }
     }
 };
