@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
+#include <mutex>
 #include <sys/socket.h>
 #include <iostream>
 #include <netinet/in.h>
@@ -46,6 +47,7 @@ std::vector<FullPacket> ReceivedPackets;
 
 std::vector<FullAck> ReceivedAcks; 
 
+    std::mutex mtx ; 
 
 public:
     UDP_Server(char ip_addr[] , int port ){
@@ -66,6 +68,11 @@ public:
             exit(1);
         }
 
+        // struct timeval tv; 
+        // tv.tv_sec =2 ; 
+        // tv.tv_usec = 0 ;
+        // setsockopt(this->socket_fd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv , sizeof(tv));
+
     }
 
     void PacketReceiver(){
@@ -76,27 +83,40 @@ public:
         struct FullPacket final_pkt_buff;
         struct FullAck final_ack;
         uint32_t type;
-        
+        this->mtx.lock();
+        int socket = this->socket_fd ;
+        this->mtx.unlock();
         while(true){
-            n = recvfrom(this->socket_fd, buffer, sizeof(buffer), 0 , &client_addr, &addr_len); 
+             
+            
+            n = recvfrom(socket, buffer, sizeof(buffer), 0 , &client_addr, &addr_len); 
+
+            this->mtx.lock();
             if(this->client_list.size() == 0 ) this->client_list.push_back(client_addr);
             //add the packet into the ReceivedPackets list
             //decide what the type of the packet is 
             memcpy(&type, buffer, sizeof(type));
+           
             if(type == ACK){
                 memcpy(&(final_ack.Ack), buffer, sizeof(AckPacket));
                 memcpy(&(final_ack.addr), &client_addr, sizeof(client_addr));
+                
                 this->ReceivedAcks.push_back(final_ack);
 
             }else if(type  == MESSAGE){
                 memcpy(&(final_pkt_buff.Message), buffer, sizeof(buffer));
                 memcpy(&(final_pkt_buff.addr), &client_addr, sizeof(client_addr));
                 this->ReceivedPackets.push_back(final_pkt_buff);
+                std::cout <<"captured:" << final_pkt_buff.Message.data <<std::endl;
+                std::cout <<"size of packet list :" << this->ReceivedPackets.size() <<std::endl; 
                 //imidiatly send ACK
                 struct AckPacket ack;
                 ack.type = ACK;
                 ack.seq = final_pkt_buff.Message.seq ;
+                
                 sendto(this->socket_fd, &ack, sizeof(ack), 0, &client_addr, addr_len);
+                std::cout<<"ack sent " << ack.seq<< std::endl;
+
             }
             
             
@@ -114,7 +134,11 @@ public:
                 }
             }
             if(!isSameClient) this->client_list.push_back(client_addr);
-            std::cout<<"captured:" << buffer << std::endl ; 
+           
+            
+            
+            
+            this->mtx.unlock();
         }
     }
 
@@ -183,14 +207,16 @@ void waitForAck(struct sockaddr* client_addr,uint32_t seq) {
 }
 
     void broadcast(){
+        //std::cout<<"in broadcast()\n" ; 
         //this function should broadcast every received packet to all clients except the sender 
+        this->mtx.lock();
         bool isSameAddr = 0;
         bool isSamePort = 0 ;
         bool isSameClient = 0;
         size_t queue_size = this->ReceivedPackets.size();
         size_t client_list_size = this->client_list.size();
         socklen_t addrSize ;
-
+        
         for(int i =0 ; i<queue_size ; i++){ //iterate the msgs
             for(int j = 0 ; j<client_list_size ; j++){ //iterate each client
                 //check if the pkt source addr is the same as the one in the client list and the send it to the client if not
@@ -199,14 +225,18 @@ void waitForAck(struct sockaddr* client_addr,uint32_t seq) {
                 isSameClient = isSameAddr && isSamePort ;
                 if(!isSameClient){ //if they are not the same clients then send the packet to it
                     addrSize = sizeof(this->client_list[j]);
+                    
                     sendto(this->socket_fd, &(this->ReceivedPackets[i].Message), sizeof(MessagePacket), 0, &(this->client_list[j]),addrSize );
+                    
                     //TODO : IMPLEMENT THE ACK SYSTEM
-                    this->waitForAck(&(this->client_list[j]),this->ReceivedPackets[i].Message.seq );
+                    //this->waitForAck(&(this->client_list[j]),this->ReceivedPackets[i].Message.seq );
                 } 
             }
             
                 
         }
+        this->ReceivedPackets.clear();
+        this->mtx.unlock();
     }
 
     void start(){

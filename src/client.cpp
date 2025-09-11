@@ -1,6 +1,9 @@
 #include <arpa/inet.h>
+#include <asm-generic/socket.h>
+#include <bits/types/struct_timeval.h>
 #include <cstdint>
 #include <cstdio>
+#include <mutex>
 #include <netinet/in.h>
 #include <ostream>
 #include <string>
@@ -46,6 +49,7 @@ struct AckPacket {
 
     std::vector<struct MessagePacket> queue;
 
+    std::mutex mtx ; 
 public:
     UDP_Client(char ip_addr[] , int port){
         //this function inits the socketfd and then sets the dest address 
@@ -59,6 +63,10 @@ public:
         this->dest_addr.sin_family = AF_INET ;
         this->dest_addr.sin_port = htons(port) ;
         this->dest_addr.sin_addr.s_addr = inet_addr(ip_addr);
+        struct timeval tv; 
+        tv.tv_sec =2 ; 
+        tv.tv_usec = 0 ;
+        setsockopt(this->sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv , sizeof(tv));
         
     }
 
@@ -66,9 +74,12 @@ public:
         char buffer[1024];
         sockaddr_in fromAdrr;
         socklen_t fromLen = sizeof(fromAdrr);
-        while(true){
+        while(true){ 
+            
+            
             int bytesReceived = recvfrom(sock, buffer, sizeof(buffer), 0 , (struct sockaddr*)&fromAdrr , &fromLen );
             if(bytesReceived>0){
+                this->mtx.lock();
                 uint32_t type;
                 memcpy(&type, buffer, sizeof(type));
 
@@ -79,12 +90,17 @@ public:
                     
                 }else if (type == MESSAGE) {
                     memcpy(&(this->receivedMessage),buffer , sizeof(this->receivedMessage));
-                    std::cout<<"[Server]:" << receivedMessage.data << std::endl;
+                    std::cout<<"[Server]:" << this->receivedMessage.data << std::endl;
                     std::cout.flush();
                 }
 
-
+                mtx.unlock();
+                
             }
+            //unlock the mutex after each loop
+                        
+            
+            
         }
     }
 
@@ -158,6 +174,10 @@ void waitForAck(uint32_t seq) {
 }
 
     void SendPacket(){
+
+        this->mtx.lock();
+        
+        
         MessagePacket Message{} ; 
         this->receivedAck.seq =0;
         int seqNum =1;
@@ -165,10 +185,13 @@ void waitForAck(uint32_t seq) {
             Message = this->queue[i];
             
             sendto(this->sockfd, &Message, sizeof(Message), 0, (struct sockaddr*)&this->dest_addr, this->dest_len);
-            this->waitForAck(Message.seq ) ; 
+            
+            //this->waitForAck(Message.seq ) ; 
 
         }   
         this->queue.clear(); 
+        this->mtx.unlock();
+        std::cout<<"---- unlocked ----\n" ; 
         
     }
         
@@ -182,6 +205,15 @@ void waitForAck(uint32_t seq) {
             std::cout << " > " ; 
             std::getline(std::cin , message); // TODO: HANDLE THE INPUT WITH THE DECODER (tom5596)
             //TODO: ADD TO QUEUE (tom5596)
+            
+            struct MessagePacket pckt;
+            pckt.type = MESSAGE ; 
+            pckt.seq =1 ;
+            pckt.size = 1;
+            char msg[256] = "TEST" ; 
+            memcpy(pckt.data, msg, sizeof(msg));
+            this->queue.push_back(pckt);
+            
             this->SendPacket();
 
         }
