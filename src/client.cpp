@@ -12,6 +12,8 @@
 #include <vector>
 #include <cstdlib>
 #include <cstring>
+#include <queue>
+#include "./mheader/mheader.h"
 
 class UDP_Client {
 private:
@@ -103,7 +105,20 @@ public:
     void addToQueue(std::string msg){
         //we should split the message and add the packets to the queue
         // implement the decoder here mr tom5596
+        
+        // hello its me, mr tom! :P
+    
+	std::queue<mHeader *> mHeaderQueue;
 
+	mheader_ls hdr_list = encode_mheader (
+		                (char *)msg.c_str(),
+			  	        msg.size(),
+				        MHEADER_MESSAGE
+			      );
+	for (int i=0; i < hdr_list.size(); i++) {
+	    
+	     mHeaderQueue.push(hdr_list[i]);
+	}
     
     }
 
