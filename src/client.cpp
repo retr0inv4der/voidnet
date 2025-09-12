@@ -90,6 +90,12 @@ public:
                     
                 }else if (type == MESSAGE) {
                     memcpy(&(this->receivedMessage),buffer , sizeof(this->receivedMessage));
+                    //-----send ack -----
+                    struct AckPacket ack ;
+                    ack.type = ACK ; 
+                    ack.seq = this->receivedMessage.seq; 
+                    sendto(this->sockfd, &ack , sizeof(ack ), 0 ,(struct sockaddr* ) &this->dest_addr, this->dest_len);
+                    //-----ack sent----- 
                     std::cout<<"[Server]:" << this->receivedMessage.data << std::endl;
                     std::cout.flush();
                 }

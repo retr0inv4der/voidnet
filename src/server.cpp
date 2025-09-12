@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstring>
 #include <mutex>
+#include <ostream>
 #include <sys/socket.h>
 #include <iostream>
 #include <netinet/in.h>
@@ -102,6 +103,7 @@ public:
                 memcpy(&(final_ack.addr), &client_addr, sizeof(client_addr));
                 
                 this->ReceivedAcks.push_back(final_ack);
+                std::cout <<"size of ack list :" << this->ReceivedAcks.size() <<std::endl;
 
             }else if(type  == MESSAGE){
                 memcpy(&(final_pkt_buff.Message), buffer, sizeof(buffer));
@@ -149,61 +151,35 @@ public:
 
 
 
-void waitForAck(struct sockaddr* client_addr,uint32_t seq) {
-    fd_set readfds;
-    struct timeval timeout;
-    int retval;
+void waitForAck(struct sockaddr* client_addr, uint32_t seq) {
+    std::cout << "in waitfor function" << std::endl ; 
+    bool foundAck = false;
 
-    bool foundAck = 0 ;
     while (!foundAck) {
-        //set up the file descriptor set
-        FD_ZERO(&readfds);
-        FD_SET(this->socket_fd, &readfds);
+        this->mtx.lock();
+        
+        for (int i = 0; i < this->ReceivedAcks.size(); i++) {
+            bool isSameAddr = this->ReceivedAcks[i].addr.sin_addr.s_addr ==
+                              ((struct sockaddr_in*)client_addr)->sin_addr.s_addr;
+            bool isSamePort = this->ReceivedAcks[i].addr.sin_port ==
+                              ((struct sockaddr_in*)client_addr)->sin_port;
+            bool isSameClient = isSameAddr && isSamePort;
 
-        //set timeout
-        timeout.tv_sec = 2;
-        timeout.tv_usec = 0;
-
-        //wait for data to be ready or timeout
-        retval = select(this->socket_fd + 1, &readfds, NULL, NULL, &timeout);
-
-        if (retval == -1) {
-            perror("select()");
-            exit(1);
-        } else if (retval == 0) { //time out
-            //delete the client from the client list 
-            
-            //search for the client
-            for(int i = 0 ; i < this->client_list.size() ; i++ ){
-                bool isSameAddr = ((struct sockaddr_in*)&(this->client_list))->sin_addr.s_addr == (((struct sockaddr_in*) client_addr)->sin_addr.s_addr);
-                bool isSamePort =((struct sockaddr_in*)&(this->client_list))->sin_port == ((struct sockaddr_in*) client_addr)->sin_port; 
-                bool isSameClient = isSameAddr && isSamePort ;
-                if(isSameClient){
-                    //delete the client
-                    this->client_list.erase(this->client_list.begin()+i);
-                }
-            }    
-        }
-
-
-        for(int i = 0 ; i < this->ReceivedAcks.size() ; i++ ){
-            
-            bool isSameAddr = this->ReceivedAcks[i].addr.sin_addr.s_addr == (((struct sockaddr_in*) client_addr)->sin_addr.s_addr);
-            bool isSamePort =this->ReceivedAcks[i].addr.sin_port == ((struct sockaddr_in*) client_addr)->sin_port; 
-            bool isSameClient = isSameAddr && isSamePort ;
-            if(isSameClient){
-                if(this->ReceivedAcks[i].Ack.seq == seq){
-                    foundAck = 1 ; 
-                    //delete the ack from the receivedacks
-                    this->ReceivedAcks.erase(this->ReceivedAcks.begin()+i);
-                    break;
-                }
+            if (isSameClient && this->ReceivedAcks[i].Ack.seq == seq) {
+                std::cout<<"registered the ACK " <<std::endl ; 
+                foundAck = true;
+                this->ReceivedAcks.erase(this->ReceivedAcks.begin() + i);
+                break;
             }
-
         }
-        
-        
+        this->mtx.unlock();
+
+        if (!foundAck) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(50)); // avoid busy loop
+        }
     }
+
+    std::cout << "ACK received for seq " << seq << std::endl;
 }
 
     void broadcast(){
@@ -230,6 +206,11 @@ void waitForAck(struct sockaddr* client_addr,uint32_t seq) {
                     
                     //TODO : IMPLEMENT THE ACK SYSTEM
                     //this->waitForAck(&(this->client_list[j]),this->ReceivedPackets[i].Message.seq );
+                    // Run ack listener in a detached thread
+                    std::thread ackThread(&UDP_Server::waitForAck, this,
+                    &(this->client_list[j]),
+                    this->ReceivedPackets[i].Message.seq);
+                    ackThread.detach();
                 } 
             }
             
