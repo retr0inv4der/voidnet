@@ -1,49 +1,80 @@
 # voidnet
-# UDP Chat System (Work in Progress)
+### UDP Chat System (Work in Progress)
 
-This repository contains a simple **UDP-based chat system** implemented in C++. It includes both a **server** and a **client**, designed to demonstrate concepts such as:
-
-- Socket programming with UDP (`sendto`, `recvfrom`)
-- Client management using `sockaddr_in`
-- Broadcasting messages to all clients
-- Reliable delivery with an **ACK mechanism** (in progress)
-- Handling multiple clients with threads
+This project is a **UDP-based chat system** written in C++.  
+It provides a lightweight server and client that communicate over UDP sockets while experimenting with **reliability mechanisms** such as acknowledgments (ACKs).
 
 ---
 
-## 🚀 Features (Current Status)
+## ✨ Features
 
 ### ✅ Implemented
 - **Server**
-  - Creates a UDP socket and binds to an IP/port.
-  - Receives messages from clients.
-  - Keeps track of connected clients (`client_list`).
-  - Broadcasts received messages to all clients except the sender.
-  - Runs a dedicated receiver thread (`RegisterReceiver`).
+  - Creates a UDP socket and binds to a given IP/port.
+  - Receives `MessagePacket` and `AckPacket` structures from clients.
+  - Tracks connected clients (`client_list`).
+  - Broadcasts messages to all clients except the sender.
+  - Immediately sends ACKs back to the message sender.
+  - Runs a dedicated packet listener thread (`RegisterReceiver`).
 
 - **Client**
-  - Connects to the server via UDP.
-  - Sends an initial handshake (null byte) to register with the server.
-  - Receives broadcasted messages in a separate thread.
+  - Connects to the server using UDP.
+  - Sends an initial handshake (null byte) for registration.
+  - Listens for incoming messages in a background thread.
+  - Prints server-broadcasted messages.
   - Sends messages typed by the user.
-  - Supports `MessagePacket` and `AckPacket` structures.
+  - Implements ACK sending when receiving `MessagePacket`s.
 
 ### 🔧 In Progress
-- Implementing a **reliable ACK system** for delivery confirmation.
-- Splitting and queueing messages (`addToQueue`).
-- Decoder to properly handle input before sending packets.
-- Filtering and handling different packet types more robustly.
-- Cleaning up buffer handling and error checking.
+- Full **reliable ACK system** to guarantee delivery.
+- Queueing and splitting long messages (`addToQueue` + `mheader` integration).
+- Decoder for handling structured input before sending packets.
+- Better buffer and error handling.
+- More robust client management (timeouts, disconnects).
 
 ---
 
+## 📦 Packet Structures
+
+```cpp
+struct MessagePacket {
+    uint32_t type;   // MESSAGE
+    uint32_t seq;    // Sequence number
+    uint32_t size;   // Payload size
+    char data[256];  // Message
+};
+
+struct AckPacket {
+    uint32_t type;   // ACK
+    uint32_t seq;    // Sequence number being acknowledged
+};
+```
+
 ## 🛠️ Build & Run
+- **Requirements**
 
-### Prerequisites
-- A Linux/Unix-like environment (uses `<arpa/inet.h>`, `<netinet/in.h>`, `<sys/socket.h>`, etc.)
-- `g++` with C++11 or later.
+  - Linux / Unix-like environment
 
-### Compile
+  - g++ with C++11 or later
+
+  - POSIX sockets (arpa/inet.h, netinet/in.h, sys/socket.h)
+
+**compile**
 ```bash
 g++ server.cpp -o server -pthread
 g++ client.cpp -o client -pthread
+```
+
+**Run**
+
+  - Start the server:
+```bash
+./server
+```
+
+  - Run one or more clients:
+```bash
+./client
+```
+
+Clients can now send messages, which the server broadcasts to all connected clients (excluding the sender).
