@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <mutex>
@@ -152,6 +153,7 @@ public:
 
 
 void waitForAck(struct sockaddr* client_addr, uint32_t seq) {
+    uint16_t tryTimes  = 0 ; 
     std::cout << "in waitfor function" << std::endl ; 
     bool foundAck = false;
 
@@ -175,7 +177,20 @@ void waitForAck(struct sockaddr* client_addr, uint32_t seq) {
         this->mtx.unlock();
 
         if (!foundAck) {
+            tryTimes +=1 ; 
             std::this_thread::sleep_for(std::chrono::milliseconds(50)); // avoid busy loop
+            if(tryTimes ==100){
+                this->mtx.lock();
+                //didnt receive the packet so delete the client from the list 
+                for(int i =0 ; i<= this->client_list.size() ; i++){
+                    if(((struct sockaddr_in*) & client_addr)->sin_addr.s_addr == ((struct sockaddr_in*) & this->client_list[i])->sin_addr.s_addr){
+                        if(((struct sockaddr_in*) & client_addr)->sin_port == ((struct sockaddr_in*) & this->client_list[i])->sin_port){
+                            this->client_list.erase(this->client_list.begin()+i);
+                        }
+                    }
+                }
+                this->mtx.unlock();
+            }
         }
     }
 
