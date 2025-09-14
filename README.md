@@ -97,8 +97,8 @@ Clients can now send messages, which the server broadcasts to all connected clie
 .
 ├── client.cpp
 ├── server.cpp
-├── mheader_encoder.cpp
 ├── mheader/
 │   └── mheader.h
+│   └── mheader_encoder.cpp
 └── Makefile
 ```
