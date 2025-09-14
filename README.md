@@ -49,32 +49,56 @@ struct AckPacket {
     uint32_t seq;    // Sequence number being acknowledged
 };
 ```
-
 ## 🛠️ Build & Run
-- **Requirements**
+Requirements
+Linux / Unix-like environment
 
-  - Linux / Unix-like environment
+GNU Make
 
-  - g++ with C++11 or later
+g++ (C++17 or later)
 
-  - POSIX sockets (arpa/inet.h, netinet/in.h, sys/socket.h)
+POSIX sockets (arpa/inet.h, netinet/in.h, sys/socket.h)
 
-**compile**
+Build
+From the repo root, simply run:
+
 ```bash
-g++ server.cpp -o server -pthread
-g++ client.cpp -o client -pthread
+make
 ```
+This builds both the server (udp_server) and the client (udp_client).
 
-**Run**
+To build them separately:
 
-  - Start the server:
 ```bash
-./server
+make udp_server
+make udp_client
 ```
+To clean build artifacts:
 
-  - Run one or more clients:
 ```bash
-./client
+make clean
 ```
+- Run server
+Start the server:
 
+```bash
+./udp_server
+```
+- Run one or more clients:
+
+```bash
+./udp_client
+```
 Clients can now send messages, which the server broadcasts to all connected clients (excluding the sender).
+
+## 📂 Project Structure
+```
+
+.
+├── client.cpp
+├── server.cpp
+├── mheader_encoder.cpp
+├── mheader/
+│   └── mheader.h
+└── Makefile
+```
