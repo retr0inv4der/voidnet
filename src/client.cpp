@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <asm-generic/socket.h>
 #include <bits/types/struct_timeval.h>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <mutex>
@@ -142,6 +143,27 @@ public:
 	     mHeaderQueue.push(hdr_list[i]);
 	}
     
+    //for debugging
+    size_t size = mHeaderQueue.size();
+    for(int i = 0 ; i <size ; i++ ){
+        std::cout<<std::endl <<"[DEBUG]" << "mheader size: "<< mHeaderQueue.size()<<"   mHeaderQueue.front() -> " << mHeaderQueue.front()->data << std::endl;
+        struct MessagePacket msg_pckt ;
+        msg_pckt.type = MESSAGE ;  
+        //copy the data from mheader.front to the data member of the message packet
+        memcpy(msg_pckt.data, &(mHeaderQueue.front()->data), 256);
+        msg_pckt.seq = mHeaderQueue.front()->seq;
+        msg_pckt.size = size ; 
+         
+        //add the message to the queue 
+        this->queue.push_back(msg_pckt);
+
+
+        //delete the item from the mheader queue
+        mHeaderQueue.pop();
+    }
+    
+
+
     }
 
 
@@ -211,14 +233,8 @@ void waitForAck(uint32_t seq) {
             std::cout << " > " ; 
             std::getline(std::cin , message); // TODO: HANDLE THE INPUT WITH THE DECODER (tom5596)
             //TODO: ADD TO QUEUE (tom5596)
+            this->addToQueue(message); 
             
-            struct MessagePacket pckt;
-            pckt.type = MESSAGE ; 
-            pckt.seq =1 ;
-            pckt.size = 1;
-            char msg[256] = "TEST" ; 
-            memcpy(pckt.data, msg, sizeof(msg));
-            this->queue.push_back(pckt);
             
             this->SendPacket();
 
