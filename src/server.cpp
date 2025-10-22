@@ -24,7 +24,9 @@ enum PacketType {
 };
 
 struct MessagePacket {
-    uint32_t type;   // MESSAGE
+    
+    uint32_t type;  // MESSAGE
+    char username [50] ; 
     uint32_t seq;
     uint32_t size;
     char data[256];
@@ -197,6 +199,8 @@ void waitForAck(struct sockaddr* client_addr, uint32_t seq) {
     std::cout << "ACK received for seq " << seq << std::endl;
 }
 
+
+
     void broadcast(){
         //std::cout<<"in broadcast()\n" ; 
         //this function should broadcast every received packet to all clients except the sender 
@@ -218,7 +222,7 @@ void waitForAck(struct sockaddr* client_addr, uint32_t seq) {
                     addrSize = sizeof(this->client_list[j]);
                     
                     sendto(this->socket_fd, &(this->ReceivedPackets[i].Message), sizeof(MessagePacket), 0, &(this->client_list[j]),addrSize );
-                    
+                    std::cout << "TEST:" << this->ReceivedPackets[i].Message.username << std::endl;
                     //TODO : IMPLEMENT THE ACK SYSTEM
                     //this->waitForAck(&(this->client_list[j]),this->ReceivedPackets[i].Message.seq );
                     // Run ack listener in a detached thread

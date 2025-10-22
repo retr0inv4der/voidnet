@@ -21,6 +21,7 @@
 
 class UDP_Client {
 private:
+
   int sockfd;
 
   struct sockaddr_in dest_addr;
@@ -30,7 +31,9 @@ private:
   enum PacketType { MESSAGE = 1, ACK = 2 };
 
   struct MessagePacket {
+    
     uint32_t type; // MESSAGE
+    char username[50] ;
     uint32_t seq;
     uint32_t size;
     char data[256];
@@ -46,6 +49,8 @@ private:
   std::vector<struct MessagePacket> queue;
   std::vector<struct MessagePacket> receivedMessages;
   std::mutex mtx;
+
+  char username[50] ; 
 
 public:
   UDP_Client(char ip_addr[], int port) {
@@ -66,9 +71,16 @@ public:
     setsockopt(this->sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv,
                sizeof(tv));
   }
-
+  void getUsername(){
+    char username[ 50 ] ; 
+    std::cout << "Enter your username: " ; 
+    std::cin >> username  ; 
+    std::cout << "username : " << username <<std::endl ; 
+    memcpy( (this->username) , username , 50);   
+    std::cout << "this -> username : " << this->username <<std::endl ;
+  }
   void receiveMessages(int sock) {
-    char buffer[1024];
+    char buffer[sizeof(MessagePacket)];
     sockaddr_in fromAdrr;
     socklen_t fromLen = sizeof(fromAdrr);
     while (true) {
@@ -106,7 +118,7 @@ public:
                     << std::endl;
           if (this->receivedMessage.seq == this->receivedMessage.size) {
             for (int i = 0; i < this->receivedMessages.size(); i++) {
-              std::cout << this->receivedMessages[i].data;
+              std::cout << this->receivedMessages[i].username << ":" << this->receivedMessages[i].data;
               std::cout.flush();
             }
             this->receivedMessages.clear();
@@ -163,7 +175,8 @@ public:
       memcpy(msg_pckt.data, &(mHeaderQueue.front()->data), 256);
       msg_pckt.seq = mHeaderQueue.front()->seq + 1;
       msg_pckt.size = size;
-
+      memcpy(&msg_pckt.username,this->username , sizeof(msg_pckt.username));
+      std::cout<< "TEST:" << this->username << std :: endl; 
       // add the message to the queue
       this->queue.push_back(msg_pckt);
 
@@ -230,14 +243,13 @@ public:
   void start() {
     this->initMessage();
     this->RegisterReveiver();
-
+    this->getUsername() ; 
     std::string message;
     while (true) {
       std::cout << " > ";
       std::getline(
           std::cin,
-          message); // TODO: HANDLE THE INPUT WITH THE DECODER (tom5596)
-      // TODO: ADD TO QUEUE (tom5596)
+          message); 
       this->addToQueue(message);
 
       this->SendPacket();
@@ -247,6 +259,7 @@ public:
 
 int main() {
   char ip[] = "127.0.0.1";
+  
   UDP_Client client = UDP_Client(ip, 3000);
   client.start();
 }
